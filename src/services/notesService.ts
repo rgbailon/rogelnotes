@@ -1,15 +1,22 @@
 import { NoteData } from '../../server/controllers/notesController';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'http://localhost:3000/api';  // Update to match your backend server
 
 // Fetch all notes from the database
 export const fetchNotesFromDB = async (): Promise<NoteData[]> => {
   try {
+    console.log(`Fetching notes from: ${API_BASE_URL}/notes`);
     const response = await fetch(`${API_BASE_URL}/notes`);
+    console.log(`Response status: ${response.status}`);
+    
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Error response from server:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
+    
     const result = await response.json();
+    console.log('Fetched notes:', result.data);
     return result.data;
   } catch (error) {
     console.error('Error fetching notes from database:', error);
@@ -20,6 +27,7 @@ export const fetchNotesFromDB = async (): Promise<NoteData[]> => {
 // Save a note to the database
 export const saveNoteToDB = async (note: Omit<NoteData, 'id' | 'created_at' | 'updated_at'>): Promise<NoteData> => {
   try {
+    console.log(`Saving note to: ${API_BASE_URL}/notes`, note);
     const response = await fetch(`${API_BASE_URL}/notes`, {
       method: 'POST',
       headers: {
@@ -27,12 +35,16 @@ export const saveNoteToDB = async (note: Omit<NoteData, 'id' | 'created_at' | 'u
       },
       body: JSON.stringify(note),
     });
-    
+
+    console.log(`Save response status: ${response.status}`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Error response from server:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
-    
+
     const result = await response.json();
+    console.log('Saved note result:', result);
     return result.data;
   } catch (error) {
     console.error('Error saving note to database:', error);
@@ -69,15 +81,20 @@ export const updateNoteInDB = async (id: number, note: Partial<Omit<NoteData, 'i
 // Delete a note from the database
 export const deleteNoteFromDB = async (id: number): Promise<NoteData> => {
   try {
+    console.log(`Deleting note at: ${API_BASE_URL}/notes/${id}`);
     const response = await fetch(`${API_BASE_URL}/notes/${id}`, {
       method: 'DELETE',
     });
-    
+
+    console.log(`Delete response status: ${response.status}`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Error response from server:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
-    
+
     const result = await response.json();
+    console.log('Deleted note result:', result);
     return result.data;
   } catch (error) {
     console.error('Error deleting note from database:', error);

@@ -852,8 +852,18 @@ export function NotesPage() {
         setNotes(frontendNotes);
       } catch (error) {
         console.error('Error loading notes from database:', error);
-        // Fallback to initial notes if database fails
-        setNotes(initialNotes);
+        // Fallback to localStorage if database fails
+        try {
+          const stored = localStorage.getItem("workspace_notes");
+          if (stored) {
+            setNotes(JSON.parse(stored));
+          } else {
+            setNotes(initialNotes);
+          }
+        } catch (storageError) {
+          console.error('Error loading from localStorage:', storageError);
+          setNotes(initialNotes);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -910,14 +920,21 @@ export function NotesPage() {
     if (noteToDelete !== null) {
       try {
         await deleteNoteFromDB(noteToDelete);
-        setNotes(notes.filter((n) => n.id !== noteToDelete));
+        const updatedNotes = notes.filter((n) => n.id !== noteToDelete);
+        setNotes(updatedNotes);
+        // Also update localStorage as backup
+        localStorage.setItem("workspace_notes", JSON.stringify(updatedNotes));
         // If we're currently viewing the note that was deleted, go back to the list
         if (selectedNote && selectedNote.id === noteToDelete) {
           setSelectedNote(null);
         }
       } catch (error) {
         console.error('Error deleting note from database:', error);
-        alert('Failed to delete note. Please try again.');
+        // Fallback to localStorage only
+        const updatedNotes = notes.filter((n) => n.id !== noteToDelete);
+        setNotes(updatedNotes);
+        localStorage.setItem("workspace_notes", JSON.stringify(updatedNotes));
+        alert('Failed to delete note from database. Deleted locally instead.');
       } finally {
         setDeleteModalOpen(false);
         setNoteToDelete(null);
@@ -972,18 +989,28 @@ export function NotesPage() {
       const dbNote = await saveNoteToDB(convertFrontendNoteToDb(note));
       // Add to local state with the new ID from the database
       const noteWithId = { ...note, id: dbNote.id! };
-      setNotes([noteWithId, ...notes]);
+      const updatedNotes = [noteWithId, ...notes];
+      setNotes(updatedNotes);
+      // Also save to localStorage as backup
+      localStorage.setItem("workspace_notes", JSON.stringify(updatedNotes));
     } catch (error) {
       console.error('Error adding note to database:', error);
+      // Fallback to localStorage only
+      const updatedNotes = [note, ...notes];
+      setNotes(updatedNotes);
+      localStorage.setItem("workspace_notes", JSON.stringify(updatedNotes));
       // Show error to user
-      alert('Failed to save note. Please try again.');
+      alert('Failed to save note to database. Saved locally instead.');
     }
   };
   
   const updateNote = async (updatedNote: Note) => {
     // Optimistically update UI first
-    setNotes(notes.map((n) => n.id === updatedNote.id ? updatedNote : n));
-    
+    const updatedNotes = notes.map((n) => n.id === updatedNote.id ? updatedNote : n);
+    setNotes(updatedNotes);
+    // Also update localStorage as backup
+    localStorage.setItem("workspace_notes", JSON.stringify(updatedNotes));
+
     // Update in database
     try {
       console.log('Calling updateNoteInDatabase with:', updatedNote);
@@ -991,8 +1018,16 @@ export function NotesPage() {
       console.log('Update successful');
     } catch (error) {
       console.error('Error updating note in database:', error);
+      // Revert to localStorage version if database fails
+      try {
+        const stored = localStorage.getItem("workspace_notes");
+        if (stored) {
+          setNotes(JSON.parse(stored));
+        }
+      } catch (storageError) {
+        console.error('Error reverting from localStorage:', storageError);
+      }
       alert('Failed to update note. Please try again. Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      // Optionally: revert the optimistic update here
     }
   };
   
