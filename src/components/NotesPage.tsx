@@ -986,10 +986,12 @@ export function NotesPage() {
     
     // Update in database
     try {
+      console.log('Calling updateNoteInDatabase with:', updatedNote);
       await updateNoteInDatabase(updatedNote);
+      console.log('Update successful');
     } catch (error) {
       console.error('Error updating note in database:', error);
-      alert('Failed to update note. Please try again.');
+      alert('Failed to update note. Please try again. Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
       // Optionally: revert the optimistic update here
     }
   };

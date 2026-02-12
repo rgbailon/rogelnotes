@@ -43,6 +43,7 @@ export const saveNoteToDB = async (note: Omit<NoteData, 'id' | 'created_at' | 'u
 // Update a note in the database
 export const updateNoteInDB = async (id: number, note: Partial<Omit<NoteData, 'id' | 'created_at' | 'updated_at'>>): Promise<NoteData> => {
   try {
+    console.log('Updating note:', { id, note });
     const response = await fetch(`${API_BASE_URL}/notes/${id}`, {
       method: 'PUT',
       headers: {
@@ -52,7 +53,9 @@ export const updateNoteInDB = async (id: number, note: Partial<Omit<NoteData, 'i
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Update failed:', response.status, errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
     
     const result = await response.json();
