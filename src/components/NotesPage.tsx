@@ -994,14 +994,29 @@ export function NotesPage() {
   // ============ DETAIL VIEW ============
   if (selectedNote) {
     return (
-      <NoteDetailPage
-        note={selectedNote}
-        onBack={() => setSelectedNote(null)}
-        onToggleItem={toggleChecklistItem}
-        onDelete={handleDeleteFromDetail}
-        onStatusChange={changeTaskStatus}
-        onUpdate={updateNote}
-      />
+      <>
+        <NoteDetailPage
+          note={selectedNote}
+          onBack={() => setSelectedNote(null)}
+          onToggleItem={toggleChecklistItem}
+          onDelete={handleDeleteFromDetail}
+          onStatusChange={changeTaskStatus}
+          onUpdate={updateNote}
+        />
+        {/* Delete Confirmation Modal - Also needed in detail view */}
+        <Modal
+          isOpen={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          title="Delete Note"
+          onConfirm={confirmDelete}
+          confirmText="Delete"
+          cancelText="Cancel"
+        >
+          <p className="text-gray-600 dark:text-gray-300">
+            Are you sure you want to delete this note? This action cannot be undone.
+          </p>
+        </Modal>
+      </>
     );
   }
 

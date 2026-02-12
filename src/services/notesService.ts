@@ -127,12 +127,24 @@ export const convertDbNoteToFrontend = (dbNote: NoteData): any => {
         description: dbNote.content || ''
       };
     case 'article':
+      // Parse article data from JSON content
+      let articleContent = '';
+      let articleTags: string[] = [];
+      try {
+        const parsed = JSON.parse(dbNote.content || '{}');
+        articleContent = parsed.content || '';
+        articleTags = parsed.tags || [];
+      } catch (e) {
+        // Fallback for legacy data stored as plain text
+        articleContent = dbNote.content || '';
+        articleTags = [];
+      }
       return {
         ...baseNote,
         type: 'article' as const,
-        content: dbNote.content || '',
-        readTime: '5 min read', // Placeholder
-        tags: dbNote.content?.split(',').map((tag: string) => tag.trim()) || [] // Placeholder - assuming tags are comma-separated in content
+        content: articleContent,
+        readTime: `${Math.max(1, Math.ceil(articleContent.trim().split(/\s+/).length / 200))} min read`,
+        tags: articleTags
       };
     default: // Standard note
       return {
@@ -156,8 +168,12 @@ export const convertFrontendNoteToDb = (frontendNote: any): Omit<NoteData, 'id' 
       content = frontendNote.description || '';
       break;
     case 'article':
-      // Store tags as comma-separated string in content field
-      content = frontendNote.content || '';
+      // Store content and tags as JSON in content field
+      const articleData = {
+        content: frontendNote.content || '',
+        tags: frontendNote.tags || []
+      };
+      content = JSON.stringify(articleData);
       break;
     default: // Standard note
       content = frontendNote.content || '';
