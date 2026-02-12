@@ -386,7 +386,7 @@ function NoteDetailPage({
   note: Note;
   onBack: () => void;
   onToggleItem: (noteId: number, itemId: number) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: number) => void;  // This will be the openDeleteModal function
   onStatusChange: (id: number, status: "todo" | "in-progress" | "done") => void;
   onUpdate: (note: Note) => void;
 }) {
@@ -466,7 +466,7 @@ function NoteDetailPage({
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
             {isEditing ? "Editing" : "Edit"}
           </button>
-          <button onClick={() => { onDelete(note.id); onBack(); }} className="flex items-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-sm font-medium text-red-500 transition-all hover:bg-red-500/10">
+          <button onClick={() => onDelete(note.id)} className="flex items-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-sm font-medium text-red-500 transition-all hover:bg-red-500/10">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
             Delete
           </button>
@@ -911,6 +911,7 @@ export function NotesPage() {
       try {
         await deleteNoteFromDB(noteToDelete);
         setNotes(notes.filter((n) => n.id !== noteToDelete));
+        // If we're currently viewing the note that was deleted, go back to the list
         if (selectedNote && selectedNote.id === noteToDelete) {
           setSelectedNote(null);
         }
@@ -984,6 +985,12 @@ export function NotesPage() {
     }
   };
 
+  // Function to handle deletion from the detail view
+  const handleDeleteFromDetail = (id: number) => {
+    setNoteToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
   // ============ DETAIL VIEW ============
   if (selectedNote) {
     return (
@@ -991,7 +998,7 @@ export function NotesPage() {
         note={selectedNote}
         onBack={() => setSelectedNote(null)}
         onToggleItem={toggleChecklistItem}
-        onDelete={deleteNote}
+        onDelete={handleDeleteFromDetail}
         onStatusChange={changeTaskStatus}
         onUpdate={updateNote}
       />
