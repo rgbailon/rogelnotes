@@ -917,6 +917,7 @@ export function NotesPage() {
         }
       } catch (error) {
         console.error('Error deleting note from database:', error);
+        alert('Failed to delete note. Please try again.');
       } finally {
         setDeleteModalOpen(false);
         setNoteToDelete(null);
@@ -924,34 +925,45 @@ export function NotesPage() {
     }
   };
   const toggleChecklistItem = (noteId: number, itemId: number) => {
-    setNotes(notes.map((n) => {
-      if (n.id === noteId && n.type === "checklist") {
-        const updatedItems = n.items.map((item) => 
-          item.id === itemId ? { ...item, checked: !item.checked } : item
-        );
-        const updatedNote = { ...n, items: updatedItems };
-        
-        // Update in database
+    setNotes((prevNotes) => {
+      const updatedNotes = prevNotes.map((n) => {
+        if (n.id === noteId && n.type === "checklist") {
+          const updatedItems = n.items.map((item) => 
+            item.id === itemId ? { ...item, checked: !item.checked } : item
+          );
+          const updatedNote = { ...n, items: updatedItems };
+          return updatedNote;
+        }
+        return n;
+      });
+      
+      // Get the updated note for database update
+      const updatedNote = updatedNotes.find(n => n.id === noteId);
+      if (updatedNote) {
         updateNoteInDatabase(updatedNote);
-        
-        return updatedNote;
       }
-      return n;
-    }));
+      
+      return updatedNotes;
+    });
   };
   
   const changeTaskStatus = (id: number, status: "todo" | "in-progress" | "done") => {
-    setNotes(notes.map((n) => { 
-      if (n.id === id && n.type === "task") {
-        const updatedNote = { ...n, status };
-        
-        // Update in database
+    setNotes((prevNotes) => {
+      const updatedNotes = prevNotes.map((n) => { 
+        if (n.id === id && n.type === "task") {
+          return { ...n, status };
+        } 
+        return n; 
+      });
+      
+      // Get the updated note for database update
+      const updatedNote = updatedNotes.find(n => n.id === id);
+      if (updatedNote && updatedNote.type === "task") {
         updateNoteInDatabase(updatedNote);
-        
-        return updatedNote;
-      } 
-      return n; 
-    }));
+      }
+      
+      return updatedNotes;
+    });
   };
   
   const addNote = async (note: Note) => {
@@ -959,14 +971,17 @@ export function NotesPage() {
       // Save to database
       const dbNote = await saveNoteToDB(convertFrontendNoteToDb(note));
       // Add to local state with the new ID from the database
-      const noteWithId = { ...note, id: dbNote.id };
+      const noteWithId = { ...note, id: dbNote.id! };
       setNotes([noteWithId, ...notes]);
     } catch (error) {
       console.error('Error adding note to database:', error);
+      // Show error to user
+      alert('Failed to save note. Please try again.');
     }
   };
   
   const updateNote = async (updatedNote: Note) => {
+    // Optimistically update UI first
     setNotes(notes.map((n) => n.id === updatedNote.id ? updatedNote : n));
     
     // Update in database
@@ -974,6 +989,8 @@ export function NotesPage() {
       await updateNoteInDatabase(updatedNote);
     } catch (error) {
       console.error('Error updating note in database:', error);
+      alert('Failed to update note. Please try again.');
+      // Optionally: revert the optimistic update here
     }
   };
   
@@ -982,6 +999,7 @@ export function NotesPage() {
       await updateNoteInDB(note.id, convertFrontendNoteToDb(note));
     } catch (error) {
       console.error('Error updating note in database:', error);
+      throw error; // Re-throw so caller can handle it
     }
   };
 
@@ -1135,19 +1153,33 @@ export function NotesPage() {
         <CreateForm type={activeCategory} onClose={() => setIsCreating(false)} onSave={(note) => { addNote(note); setIsCreating(false); }} />
       )}
 
-      {/* Notes Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredNotes.map((note) => {
-          switch (note.type) {
-            case "checklist": return <ChecklistCard key={note.id} note={note} onToggleItem={toggleChecklistItem} onDelete={openDeleteModal} onClick={() => setSelectedNote(note)} />;
-            case "note": return <StandardNoteCard key={note.id} note={note} onDelete={openDeleteModal} onClick={() => setSelectedNote(note)} />;
-            case "task": return <TaskCard key={note.id} note={note} onDelete={openDeleteModal} onStatusChange={changeTaskStatus} onClick={() => setSelectedNote(note)} />;
-            case "article": return <ArticleCard key={note.id} note={note} onDelete={openDeleteModal} onClick={() => setSelectedNote(note)} />;
-          }
-        })}
-      </div>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className={cn("mb-4 flex h-16 w-16 items-center justify-center rounded-2xl", theme.surfaceBg)}>
+            <svg className={cn("h-8 w-8 animate-spin", theme.textMuted)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="15" />
+            </svg>
+          </div>
+          <h3 className={cn("text-lg font-semibold", theme.textSecondary)}>Loading notes...</h3>
+        </div>
+      )}
 
-      {filteredNotes.length === 0 && (
+      {/* Notes Grid */}
+      {!isLoading && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredNotes.map((note) => {
+            switch (note.type) {
+              case "checklist": return <ChecklistCard key={note.id} note={note} onToggleItem={toggleChecklistItem} onDelete={openDeleteModal} onClick={() => setSelectedNote(note)} />;
+              case "note": return <StandardNoteCard key={note.id} note={note} onDelete={openDeleteModal} onClick={() => setSelectedNote(note)} />;
+              case "task": return <TaskCard key={note.id} note={note} onDelete={openDeleteModal} onStatusChange={changeTaskStatus} onClick={() => setSelectedNote(note)} />;
+              case "article": return <ArticleCard key={note.id} note={note} onDelete={openDeleteModal} onClick={() => setSelectedNote(note)} />;
+            }
+          })}
+        </div>
+      )}
+
+      {!isLoading && filteredNotes.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className={cn("mb-4 flex h-16 w-16 items-center justify-center rounded-2xl", theme.surfaceBg)}>
             <svg className={cn("h-8 w-8", theme.textMuted)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14,2 14,8 20,8" /></svg>

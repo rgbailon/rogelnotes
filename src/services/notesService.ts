@@ -118,13 +118,26 @@ export const convertDbNoteToFrontend = (dbNote: NoteData): any => {
         };
       }
     case 'task':
+      // Parse task data from JSON content
+      let taskDescription = '';
+      let taskPriority: 'low' | 'medium' | 'high' = 'medium';
+      let taskDueDate = 'No due date';
+      try {
+        const parsed = JSON.parse(dbNote.content || '{}');
+        taskDescription = parsed.description || '';
+        taskPriority = parsed.priority || 'medium';
+        taskDueDate = parsed.dueDate || 'No due date';
+      } catch (e) {
+        // Fallback for legacy data stored as plain text
+        taskDescription = dbNote.content || '';
+      }
       return {
         ...baseNote,
         type: 'task' as const,
-        priority: dbNote.content?.includes('high') ? 'high' : dbNote.content?.includes('medium') ? 'medium' : 'low',
+        priority: taskPriority,
         status: (dbNote.status as "todo" | "in-progress" | "done") || 'todo',
-        dueDate: dbNote.content || 'No due date',
-        description: dbNote.content || ''
+        dueDate: taskDueDate,
+        description: taskDescription
       };
     case 'article':
       // Parse article data from JSON content
@@ -165,7 +178,13 @@ export const convertFrontendNoteToDb = (frontendNote: any): Omit<NoteData, 'id' 
       content = JSON.stringify(frontendNote.items || []);
       break;
     case 'task':
-      content = frontendNote.description || '';
+      // Store task data as JSON
+      const taskData = {
+        description: frontendNote.description || '',
+        priority: frontendNote.priority || 'medium',
+        dueDate: frontendNote.dueDate || 'No due date'
+      };
+      content = JSON.stringify(taskData);
       break;
     case 'article':
       // Store content and tags as JSON in content field
