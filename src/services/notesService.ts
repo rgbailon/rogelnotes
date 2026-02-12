@@ -103,11 +103,11 @@ export const convertDbNoteToFrontend = (dbNote: NoteData): any => {
         return {
           ...baseNote,
           type: 'checklist' as const,
-          items: items.map((item: any, index: number) => ({
-            id: index + 1,
-            text: item.text || '',
-            checked: item.checked || false
-          }))
+          items: Array.isArray(items) ? items.map((item: any, index: number) => ({
+            id: item.id || index + 1,
+            text: typeof item === 'string' ? item : (item.text || ''),
+            checked: typeof item === 'object' && 'checked' in item ? item.checked : false
+          })) : []
         };
       } catch (e) {
         console.error('Error parsing checklist items:', e);
@@ -122,7 +122,7 @@ export const convertDbNoteToFrontend = (dbNote: NoteData): any => {
         ...baseNote,
         type: 'task' as const,
         priority: dbNote.content?.includes('high') ? 'high' : dbNote.content?.includes('medium') ? 'medium' : 'low',
-        status: dbNote.status as any,
+        status: (dbNote.status as "todo" | "in-progress" | "done") || 'todo',
         dueDate: dbNote.content || 'No due date',
         description: dbNote.content || ''
       };
@@ -132,7 +132,7 @@ export const convertDbNoteToFrontend = (dbNote: NoteData): any => {
         type: 'article' as const,
         content: dbNote.content || '',
         readTime: '5 min read', // Placeholder
-        tags: [] // Placeholder
+        tags: dbNote.content?.split(',').map((tag: string) => tag.trim()) || [] // Placeholder - assuming tags are comma-separated in content
       };
     default: // Standard note
       return {
@@ -156,6 +156,7 @@ export const convertFrontendNoteToDb = (frontendNote: any): Omit<NoteData, 'id' 
       content = frontendNote.description || '';
       break;
     case 'article':
+      // Store tags as comma-separated string in content field
       content = frontendNote.content || '';
       break;
     default: // Standard note
@@ -166,7 +167,7 @@ export const convertFrontendNoteToDb = (frontendNote: any): Omit<NoteData, 'id' 
     title: frontendNote.title,
     content,
     type: frontendNote.type,
-    color: frontendNote.color,
+    color: frontendNote.color || '#ffffff',
     status: frontendNote.status || 'active'
   };
 };
