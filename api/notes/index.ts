@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import pool from './_db';
+import pool, { initializeSchema } from '../_db';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -14,6 +14,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Initialize schema on first request
+    await initializeSchema();
+    
     switch (req.method) {
       case 'GET':
         // Get all notes
@@ -50,6 +53,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (error) {
     console.error('Database error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 }

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import pool from '../_db';
+import pool, { initializeSchema } from '../_db';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -20,10 +20,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Initialize schema on first request
+    await initializeSchema();
+    
     switch (req.method) {
       case 'GET':
         // Get note by ID
-        const result = await pool.query('SELECT * FROM notes WHERE id = $1', [id]);
+        const getNoteId = parseInt(id as string, 10);
+        if (isNaN(getNoteId)) {
+          return res.status(400).json({ error: 'Invalid note ID format' });
+        }
+        
+        const result = await pool.query('SELECT * FROM notes WHERE id = $1', [getNoteId]);
         
         if (result.rows.length === 0) {
           return res.status(404).json({ error: 'Note not found' });
@@ -37,9 +45,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'PUT':
         // Update note
         const { title, content, type, color, status } = req.body;
+        
+        console.log('PUT request received:', { id, title, type, body: req.body });
+
+        // Convert id to number if it's a string
+        const noteId = parseInt(id as string, 10);
+        if (isNaN(noteId)) {
+          return res.status(400).json({ error: 'Invalid note ID format' });
+        }
 
         // Check if note exists
-        const existingNote = await pool.query('SELECT id FROM notes WHERE id = $1', [id]);
+        const existingNote = await pool.query('SELECT id FROM notes WHERE id = $1', [noteId]);
         
         if (existingNote.rows.length === 0) {
           return res.status(404).json({ error: 'Note not found' });
@@ -55,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $6
            RETURNING *`,
-          [title, content, type, color, status, id]
+          [title, content, type, color, status, noteId]
         );
 
         return res.status(200).json({
@@ -66,7 +82,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       case 'DELETE':
         // Delete note
-        const deleteResult = await pool.query('DELETE FROM notes WHERE id = $1 RETURNING *', [id]);
+        const deleteNoteId = parseInt(id as string, 10);
+        if (isNaN(deleteNoteId)) {
+          return res.status(400).json({ error: 'Invalid note ID format' });
+        }
+        
+        const deleteResult = await pool.query('DELETE FROM notes WHERE id = $1 RETURNING *', [deleteNoteId]);
 
         if (deleteResult.rows.length === 0) {
           return res.status(404).json({ error: 'Note not found' });
@@ -83,6 +104,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (error) {
     console.error('Database error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 }
